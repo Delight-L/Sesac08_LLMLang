@@ -162,11 +162,18 @@ def build_seq_chain(llm):
 
     destination_str = '\n'.join(f"{p['name']} : {p['description']}" for p in T.PROMPT_INFOS)
     router_prompt = ChatPromptTemplate.from_template(
+        #MULTI_PROMPT_ROUTER_TEMPLATE 질문이 들어왔을 때 넷 중 하나의 체인을 고르라
+        #MULTI_PROMPT_ROUTER_TEMPLATE 이 가지고 있는 '채워줘야할 공백' => destinations
+        #destination_str -> 네 개의 체인이 어떤 역할을 하는 체인인지 설명 PROMPT_INFOS
         T.MULTI_PROMPT_ROUTER_TEMPLATE.format(destinations=destination_str))
 
+    #라우터@@@@@@@@@!!!!!!!!
+    # 라우터 프롬프트 -> llm -> Json파서
+    #JsonOutputParser가 ```json 코드펜스까지 벗겨줌
     router = router_prompt | llm | JsonOutputParser()
     verbose = True
     def route(info):
+        #어느 체인이 답할지에 대한 정보를 가지고 (해당하는)체인이 답변하게 하는 코드 ->route 
         destination = info.get('destination', 'DEFUALT')
         chain = destination_chains.get(destination, default_chain)
         if verbose:
