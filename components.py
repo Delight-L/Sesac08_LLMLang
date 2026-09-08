@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 #비밀 키를 가져오는 역할을 함 -> .env 
 load_dotenv()
 
+#내가 사용할 템플릿(templates.py라는 파일에서 모든(*) 애들을 다 데려오겠다)
+import templates as T
+
+
 #내가 사용할 gpt모델 
 # o 알파벳 o..(소문자)
 MODEL_NAME = 'gpt-4o'
@@ -25,18 +29,14 @@ MODEL_NAME = 'gpt-4o'
 def get_chat(temperature=0.5, model=MODEL_NAME):
     return ChatOpenAI(temperature=temperature, model=model)
 
-STYLE_TEMPLATE = """Translate the text \
-that is delimited by triple backticks \
-into a style that is {style}. \
-text: ```{text}```
-"""
+
 
 #프롬프팅 양식을 세팅
 #매개변수 chat은 gpt와의 채팅 방 
 # prompt | chat (미리 정해놓은 prompt를 chat채팅방에 넘겨주는 작동)
 # chat | StrOutputParser() (chat의 답변을 StrOutputParser로 넘겨주는 작동)
 def build_style_chain(chat):
-    prompt = ChatPromptTemplate.from_template(STYLE_TEMPLATE)
+    prompt = ChatPromptTemplate.from_template(T.STYLE_TEMPLATE)
     #LCEL문법 -> prompt를 chat에 넘겨주고 -> 그 결과를 strOutputParser에 다시 넣어주는 연결
     return prompt | chat | StrOutputParser()
 
@@ -78,28 +78,13 @@ def parsing():
     print(reply)
 
 
-REVIEW_TEMPLATE = """\
-For the following text, extract the following information:
 
-gift: Was the item purchased as a gift for someone else? \
-Answer True if yes, False if not or unknown.
-
-delivery_days: How many days did it take for the product\
-to arrive? If this information is not found, output -1.
-
-price_value: Extract any sentences about the value or price,\
-and output them as a comma separated Python list.
-
-text: {text}
-
-{format_instructions}
-"""
 
 from langchain_classic.output_parsers import ResponseSchema, StructuredOutputParser
 def build_review_chain(chat):
     #1. prompt를 만드시오(build_style_chain 참고)
     # AutoTokneizer.from_pretrained(모델이름)
-    prompt = ChatPromptTemplate.from_template(REVIEW_TEMPLATE)
+    prompt = ChatPromptTemplate.from_template(T.REVIEW_TEMPLATE)
 
     #**StrOutputParser는 '거의 아무것도 하지 않는' str만 추출하는 역할
     #StructuredOutputParser 은 gpt가 생성한 str을 특정한 구조(자료형)로 파싱
@@ -138,21 +123,44 @@ def output_parsing():
     print(f'구조화 결과 delivery : {output.get('delivery_days')}')
 
 
+def Legacy_chat():
+    Chat = OpenAI()
+    #Chat = ChatOpenAI(temperature=0.6, model=MODEL_NAME)
+
+    response = Chat.completions.create(
+        model = MODEL_NAME,
+        #role : system(openai의 세팅), user(사용자)
+        messages = [{'role':'system', 'content':'말끝에다가 멍을 붙여라'},
+                    {'role':'user', 'content': '한국은 어떤 나라이니?' }],
+
+        #답변의 창의성(0~1) 1에 가까울 수록 창의적(랜덤한) 답변 
+        temperature = 0.6
+    )
+
+    #답변 중 choices[0].message.content 가 텍스트로 된 답변 추출
+    print(response)
+    print(response.choices[0].message.content)
+
+
+#LCEL으로 넘겨주기위해 Runnable 패밀리 사용!
+#https://modulabs.co.kr/community/momos/284/feeds/3525
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+def build_seq_chain(llm):
+    #내가 하려고 하는 것 : 질문이 들어옴 -> 질문을 분류함(라우터) -> 각 Chat이 대답함 -> 깔끔하게 리턴 
+    destination_chains = {
+        #p가 뭘까?
+        p['name'] : ChatPromptTemplate.from_template(p['prompt_template']) 
+        | llm 
+        | StrOutputParser() for p in T.PROMPT_INFOS
+    }
+    print(destination_chains)
+    default_chain = ChatPromptTemplate.from_template("") | llm | StrOutputParser()
+
+    destination_str = '\n'.join(f"{p}" for p in T.PROMPT_INFOS)
+
 if __name__ == '__main__':
-    output_parsing()
-    #Chat = OpenAI()
-    # Chat = ChatOpenAI(temperature=0.6, model=MODEL_NAME)
-
-    # response = Chat.completions.create(
-    #     model = MODEL_NAME,
-    #     #role : system(openai의 세팅), user(사용자)
-    #     messages = [{'role':'system', 'content':'말끝에다가 멍을 붙여라'},
-    #                 {'role':'user', 'content': '한국은 어떤 나라이니?' }],
-
-    #     #답변의 창의성(0~1) 1에 가까울 수록 창의적(랜덤한) 답변 
-    #     temperature = 0.6
-    # )
-
-    # #답변 중 choices[0].message.content 가 텍스트로 된 답변 추출
-    # print(response)
-    # print(response.choices[0].message.content)
+    #output_parsing()
+    llm = get_chat()
+    build_seq_chain(llm)
