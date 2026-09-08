@@ -77,12 +77,65 @@ def parsing():
 
     print(reply)
 
-    # customer_review = 
 
-    # parse_chain, format = 
+REVIEW_TEMPLATE = """\
+For the following text, extract the following information:
 
-    # output = 
-    # print(f'구조화된 파싱 : {}')
+gift: Was the item purchased as a gift for someone else? \
+Answer True if yes, False if not or unknown.
+
+delivery_days: How many days did it take for the product\
+to arrive? If this information is not found, output -1.
+
+price_value: Extract any sentences about the value or price,\
+and output them as a comma separated Python list.
+
+text: {text}
+
+{format_instructions}
+"""
+
+from langchain_classic.output_parsers import ResponseSchema, StructuredOutputParser
+def build_review_chain(chat):
+    #1. prompt를 만드시오(build_style_chain 참고)
+    # AutoTokneizer.from_pretrained(모델이름)
+    prompt = ChatPromptTemplate.from_template(REVIEW_TEMPLATE)
+
+    #**StrOutputParser는 '거의 아무것도 하지 않는' str만 추출하는 역할
+    #StructuredOutputParser 은 gpt가 생성한 str을 특정한 구조(자료형)로 파싱
+    #schemas -> 나 이런 정보 필요해~ name(변수이름)
+    schemas = [
+        ResponseSchema(name="gift",
+                       description="Was the item purchased as a gift for someone else? "
+                                   "Answer True if yes, False if not or unknown."),
+        ResponseSchema(name="delivery_days",
+                       description="How many days did it take for the product to arrive? "
+                                   "If this information is not found, output -1."),
+        ResponseSchema(name="price_value",
+                       description="Extract any sentences about the value or price, "
+                                   "and output them as a comma separated Python list."),
+    ]
+
+    #리뷰를 합친 prompt가 인풋 -> chat이 이를 확인 -> gpt(chat)이 생성한 결과를 schemas에 따라 구조화
+    return prompt | chat | StructuredOutputParser.from_response_schemas(schemas)
+
+#OutputParser의 종류를 바꿔서 Parser의 역할을 확인
+#리뷰 -> 리뷰 여기저기에 존재하는 정보를 Parser가 골라내서 정리해 주는 역할
+def output_parsing():
+    customer_review = """\
+    This leaf blower is pretty amazing. It has four settings: candle blower, gentle breeze, \
+    windy city, and tornado. It arrived in two days, just in time for my wife's anniversary \
+    present. I think my wife liked it so much she was speechless. It's slightly more expensive \
+    than the other leaf blowers out there, but I think it's worth it for the extra features.
+    """
+
+    chat = get_chat()
+    parse_chain, format = build_review_chain(chat)
+
+    output = parse_chain.invoke({'':,
+                                 '':}) 
+    print(f'구조화된 파싱 : {type(output).__name__, output}')
+    print(f'구조화 결과 delivery : {output.get('delivery_days')}')
 
 
 if __name__ == '__main__':
