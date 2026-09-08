@@ -7,15 +7,21 @@
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 
+#ChatPromptTemplate -> gpt나 llm에 질문할 내용을 정리하는 것
+from langchain_core.prompts import ChatPromptTemplate 
+#StrOutputParser -> output으로 나온 결과물을 정제
+from langchain_core.output_parsers import StrOutputParser
+
 import os
 from dotenv import load_dotenv 
 #비밀 키를 가져오는 역할을 함 -> .env 
 load_dotenv()
 
 #내가 사용할 gpt모델 
+# o 알파벳 o..(소문자)
 MODEL_NAME = 'gpt-4o'
 
-
+#내가 대화할 gpt모델과의 '채팅 방' 만들기 절차
 def get_chat(temperature=0.5, model=MODEL_NAME):
     return ChatOpenAI(temperature=temperature, model=model)
 
@@ -26,9 +32,10 @@ text: ```{text}```
 """
 
 #프롬프팅 양식을 세팅
+#매개변수 chat은 gpt와의 채팅 방 
+# prompt | chat (미리 정해놓은 prompt를 chat채팅방에 넘겨주는 작동)
+# chat | StrOutputParser() (chat의 답변을 StrOutputParser로 넘겨주는 작동)
 def build_style_chain(chat):
-    from langchain_core.prompts import ChatPromptTemplate 
-    from langchain_core.parsers import StrOutputParser
     prompt = ChatPromptTemplate.from_template(STYLE_TEMPLATE)
     #LCEL문법 -> prompt를 chat에 넘겨주고 -> 그 결과를 strOutputParser에 다시 넣어주는 연결
     return prompt | chat | StrOutputParser()
@@ -45,12 +52,30 @@ def parsing():
                 '''
 
     #gpt야, 해적손님의 메일을 격식을 갖춘 따뜻한 어투의 영어 메일로 바꿔줘.
+    #gpt-4o모델과 temperate 0.5로 만든 채팅방을 연 상태(채팅방 = chat)
     chat = get_chat()
 
     #gpt에게 위의 손님 메일 + (변형)요청을 보내, 답변을 받아오는 체인 정의
+    #style_chain은 prompt -> chat -> stroutput parser로 이어지는 파이프라인
     style_chain = build_style_chain(chat)
 
-    style_chain.invoke()
+    #style_chain.invoke
+    result = style_chain.invoke({'style':'''Korean 
+                                        in a calm and 
+                                        respectful tone''',
+                                          'text':customer})
+
+    print(result)
+
+    text = input(f'{result}에 대한 나의 답변')
+    reply = style_chain.invoke({'style':'''english
+                                        in a calm and 
+                                        respectful tone 
+                                        if my response contains some
+                                        bad words, plz translate it or remove it''',
+                                          'text':text})
+
+    print(reply)
 
     # customer_review = 
 
@@ -61,19 +86,20 @@ def parsing():
 
 
 if __name__ == '__main__':
+    parsing()
     #Chat = OpenAI()
-    Chat = ChatOpenAI(temperature=0.6, model=MODEL_NAME)
+    # Chat = ChatOpenAI(temperature=0.6, model=MODEL_NAME)
 
-    response = Chat.completions.create(
-        model = MODEL_NAME,
-        #role : system(openai의 세팅), user(사용자)
-        messages = [{'role':'system', 'content':'말끝에다가 멍을 붙여라'},
-                    {'role':'user', 'content': '한국은 어떤 나라이니?' }],
+    # response = Chat.completions.create(
+    #     model = MODEL_NAME,
+    #     #role : system(openai의 세팅), user(사용자)
+    #     messages = [{'role':'system', 'content':'말끝에다가 멍을 붙여라'},
+    #                 {'role':'user', 'content': '한국은 어떤 나라이니?' }],
 
-        #답변의 창의성(0~1) 1에 가까울 수록 창의적(랜덤한) 답변 
-        temperature = 0.6
-    )
+    #     #답변의 창의성(0~1) 1에 가까울 수록 창의적(랜덤한) 답변 
+    #     temperature = 0.6
+    # )
 
-    #답변 중 choices[0].message.content 가 텍스트로 된 답변 추출
-    print(response)
-    print(response.choices[0].message.content)
+    # #답변 중 choices[0].message.content 가 텍스트로 된 답변 추출
+    # print(response)
+    # print(response.choices[0].message.content)
