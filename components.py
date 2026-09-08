@@ -178,4 +178,7 @@ def build_seq_chain(llm):
 if __name__ == '__main__':
     #output_parsing()
     llm = get_chat()
-    build_seq_chain(llm)
+    router = build_seq_chain(llm)
+    questions = ['수학에서 원주가 뭐야?','왜 건물들은 지진이 나도 안 무너져', '가장 빠른 자료구조가 뭘까']
+    for q in questions:
+        print(f'question: {q}\n answer: {router.invoke({'input':q})[:200]}')
