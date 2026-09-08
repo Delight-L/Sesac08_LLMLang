@@ -155,10 +155,25 @@ def build_seq_chain(llm):
         | llm 
         | StrOutputParser() for p in T.PROMPT_INFOS
     }
-    print(destination_chains)
-    default_chain = ChatPromptTemplate.from_template("") | llm | StrOutputParser()
+    #print(destination_chains)
+    #destination_chains는 4개의 페르소나를 가진 질의응답 체인이다.
+    #default_chain : 일반응답을 수행해주는 일반 gpt
+    default_chain = ChatPromptTemplate.from_template("{input}") | llm | StrOutputParser()
 
-    destination_str = '\n'.join(f"{p}" for p in T.PROMPT_INFOS)
+    destination_str = '\n'.join(f"{p['name']} : {p['description']}" for p in T.PROMPT_INFOS)
+    router_prompt = ChatPromptTemplate.from_template(
+        T.MULTI_PROMPT_ROUTER_TEMPLATE.format(destinations=destination_str))
+
+    router = router_prompt | llm | JsonOutputParser()
+    verbose = True
+    def route(info):
+        destination = info.get('destination', 'DEFUALT')
+        chain = destination_chains.get(destination, default_chain)
+        if verbose:
+            print(f'[router] : {destination} -> {info['next_inputs']}')
+        return chain.invoke({'input':info['next_inputs']})
+    return router | RunnableLambda(route)
+        
 
 if __name__ == '__main__':
     #output_parsing()
