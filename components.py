@@ -117,29 +117,29 @@ def build_review_chain(chat):
     ]
 
     #리뷰를 합친 prompt가 인풋 -> chat이 이를 확인 -> gpt(chat)이 생성한 결과를 schemas에 따라 구조화
-    return prompt | chat | StructuredOutputParser.from_response_schemas(schemas)
+    return prompt | chat | StructuredOutputParser.from_response_schemas(schemas), StructuredOutputParser.from_response_schemas(schemas).get_format_instructions()
 
 #OutputParser의 종류를 바꿔서 Parser의 역할을 확인
 #리뷰 -> 리뷰 여기저기에 존재하는 정보를 Parser가 골라내서 정리해 주는 역할
 def output_parsing():
-    customer_review = """\
-    This leaf blower is pretty amazing. It has four settings: candle blower, gentle breeze, \
-    windy city, and tornado. It arrived in two days, just in time for my wife's anniversary \
+    customer_review = """ 
+    This leaf blower is pretty amazing. It has four settings: candle blower, gentle breeze, 
+    windy city, and tornado. It arrived in two days, just in time for my wife's anniversary 
     present. I think my wife liked it so much she was speechless. It's slightly more expensive \
     than the other leaf blowers out there, but I think it's worth it for the extra features.
     """
-
     chat = get_chat()
     parse_chain, format = build_review_chain(chat)
 
-    output = parse_chain.invoke({'':,
-                                 '':}) 
+    #build_review_chain이 시작할 때 필요한 재료가 들어가야함
+    output = parse_chain.invoke({'text':customer_review,
+                                 'format_instructions':format }) 
     print(f'구조화된 파싱 : {type(output).__name__, output}')
     print(f'구조화 결과 delivery : {output.get('delivery_days')}')
 
 
 if __name__ == '__main__':
-    parsing()
+    output_parsing()
     #Chat = OpenAI()
     # Chat = ChatOpenAI(temperature=0.6, model=MODEL_NAME)
 
