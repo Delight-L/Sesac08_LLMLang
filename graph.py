@@ -57,5 +57,26 @@ def build_graph():
     workflow.add_node('start_delivery', start_delivery)
     workflow.add_node('hold_delivery', hold_delivery)
 
+    #그래프 사이의 지점을 연결
+    workflow.add_edge(START, 'check_weather')
+
+    workflow.add_conditional_edges('check_weather', route_by_weather, 
+                                  {'hold':'hold_delivery',
+                                   'delivery' :'start_delivery'})
+
+    workflow.add_edge('hold_delivery', END)
+    workflow.add_edge('start_delivery', END)
+    
+    return workflow.compile() #그래프 고정
+
+if __name__ == '__main__':
+
+    #그래프 만듦
+    #graph -> 고정시킨 workflow가 생성
+    graph = build_graph()
+    order_id = input('주문 번호를 입력하세요')
+    city  = input('거주지를 입력하세요')
+    address = input('상세주소를 입력하세요')
+    graph.invoke({'order_id':order_id, 'city':city, 'address':address})
 
 
