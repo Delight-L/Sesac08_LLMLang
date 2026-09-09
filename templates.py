@@ -23,6 +23,37 @@ text: {text}
 {format_instructions}
 """
 
+#복습문제(리뷰 리플 자동생성)에서 사용하는 템플릿
+#{sentiment} -> '긍정' 또는 '부정' (tarr_train.txt의 label로 판단)
+#{comment}   -> 실제 리뷰 내용
+REPLY_TEMPLATE = """\
+다음은 가게에 대한 손님의 리뷰입니다. 이 리뷰는 {sentiment} 리뷰입니다.
+사장님을 대신해서, 정중하고 친근한 어투로 리뷰에 대한 답글을 2~3문장으로 작성해주세요.
+부정 리뷰라면 죄송한 마음을 담아 개선 의지를 보여주고,
+긍정 리뷰라면 감사한 마음을 진심으로 표현해주세요.
+
+리뷰: {comment}
+"""
+
+#graph_memory.py(랭그래프 예제)에서 사용
+#REPLY_TEMPLATE(위)은 sentiment를 프롬프트 "안에서" 분기했지만,
+#여기서는 LangGraph가 "노드 자체"를 분기해서 서로 다른 프롬프트를 쓴다
+#-> 그래서 sentiment 없이 각 노드 전용 프롬프트를 따로 둠
+THANKS_TEMPLATE = """\
+다음은 가게에 대한 손님의 긍정적인 리뷰입니다.
+사장님을 대신해서, 진심을 담아 감사 인사를 2~3문장으로 작성해주세요.
+
+리뷰: {comment}
+"""
+
+IMPROVE_TEMPLATE = """\
+다음은 가게에 대한 손님의 부정적인 리뷰입니다.
+사장님을 대신해서, 죄송한 마음과 함께 어떤 점을 개선하겠다는 의지를 담아
+2~3문장으로 답글을 작성해주세요.
+
+리뷰: {comment}
+"""
+
 PROMPT_INFOS = [
     {"name": "physics", "description": "Good for answering questions about physics",
      "prompt_template": "You are a very smart physics professor. You are great at answering "
