@@ -46,7 +46,38 @@ def add_to_vectorstore(vectordb, splits):
     vectordb.add_documents(splits)
     return vectordb
 
+#K는? -> 유사도 검색 후, K개 만큼의 유사 문서를 return 
+def build_retrieval(vectordb, k):
+    return vectordb.as_retriever(search_kwargs={'k':k})
 
+#리트리버 후 질문
+from langchain_core.prompts import ChatPromptTemplate
+def build_rag_chain(chat, retriever):
+    # response = Chat.completions.create(
+    #         model = MODEL_NAME,
+    #         #role : system(openai의 세팅), user(사용자)
+    #         messages = [{'role':'system', 'content':'말끝에다가 멍을 붙여라'},
+    #                     {'role':'user', 'content': '한국은 어떤 나라이니?' }],
+    
+    #         #답변의 창의성(0~1) 1에 가까울 수록 창의적(랜덤한) 답변 
+    #         temperature = 0.6
+    #     )
+    prompt = ChatPromptTemplate.from_messages([
+        ('human', '''Answer the question using only the context below.
+                    Q : {input}
+                    C : {context}
+                    ''')
+    ])
+
+    from langchain_classic.chains import create_retrieval_chain
+    from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+
+    combine = create_stuff_documents_chain(chat, prompt, document_separator='\n\n')
+    return create_retrieval_chain(retriever, combine)
+
+from dotenv import load_dotenv 
+#비밀 키를 가져오는 역할을 함 -> .env 
+load_dotenv()
 #python ./rag.py 로 실행시켜서 문제가 없어야 함!
 if __name__ == '__main__':
 
@@ -63,6 +94,16 @@ if __name__ == '__main__':
         print(f'{len(docs)} -> {len(split_doc)} 개로 나누어짐')
         add_to_vectorstore(vectordb=vectordb, splits=split_doc)
 
+    #chat, retriever
+    from langchain_openai import ChatOpenAI
+    chat = ChatOpenAI(temperature=0, model='gpt-4o')
+    retieval = build_retrieval(vectordb=vectordb, k=3)
+    rag_chain = build_rag_chain(chat, retriever=retieval)
+
+    #print("RRRRR", retieval)
+    question = input('경제 용어를 물어보세요 : \n')
+    result = rag_chain.invoke({'input': question, 'context':retieval})
+    print(result['answer'])
 
 #4. 리트리버
 #5. 리트리버 얹은 chain 정의
