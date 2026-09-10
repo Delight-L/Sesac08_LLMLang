@@ -38,11 +38,15 @@ def route_by_sentiment(state):
         return 'sorry'
 
 
-def build_graph():
+def build_graph(chat):
     graph = StateGraph(State)
 
-    graph.add_node('thanks', thanks_node)
-    graph.add_node('sorry', sorry_node)
+    #thanks_node, sorry_node 모두 매개변수 필요
+    #람다식 : 함수를 축약하는 방법 
+    #def 함수이름():
+    #return x        -> lambda x : x+2
+    graph.add_node('thanks', lambda state: thanks_node(state, chat))
+    graph.add_node('sorry', lambda state : sorry_node(state, chat))
 
     graph.add_conditional_edges(START, route_by_sentiment, 
                                 #리턴받은 값 : 그래프에 등록된 함수의 이름
@@ -54,16 +58,19 @@ def build_graph():
     return graph.compile()
 
 import main as m
-
+from langchain_openai import ChatOpenAI
 if __name__ == '__main__':
     #1. 리뷰 읽어오기
     df = m.load_reviews('./tarr_train.txt')
     print(df)
-    graph = build_graph()
+    chat = ChatOpenAI(temperature=1, model='gpt-4o')
+    graph = build_graph(chat)
 
     #2. 한 줄 한 줄 떼기 
     for i in range(len(df)):
         comment = df.loc[i]['comment']
         label = df.loc[i]['label']
         #3. 그래프로 흘려보내기 
-        graph.invoke({내용채우기})
+        #result에는 그래프의 마지막 노드에서의 '상태'가 담겨있음
+        result = graph.invoke({'label':str(label), 'comment':comment})
+        print(f'[{i}번째 댓글에 대한 답글] -> {result['label']} : {result['reply']}')
