@@ -25,8 +25,19 @@ class AgentState(TypedDict):
 class Agent:
     #이름만 Agent이고 langgraph로 구현함
     #langgraph를 구현
-    def __init__(self):
-        pass 
+    def __init__(self, system):
+        self.system = system #시스템에 대한 전반적인 답변 매너를 정하는 프롬프트
+
+        #그래프 정의
+        graph = StateGraph(AgentState)
+        graph.add_node('llm', self.call_openai) #1.채팅을 한다
+        graph.add_node('tool', self.take_action) #2.혹시 채팅중 도구 필요하면 쓴다
+
+        graph.add_conditional_edges('llm', self.exist_action, 
+                                    {True : 무엇?,
+                                     False : 무엇?})
+
+        
     #조건 판단함 -> 툴이 있나?
     def exist_action(self, state:AgentState):
         return len(state['messages'][-1].tool_calls) > 0
@@ -40,7 +51,27 @@ class Agent:
         return {'messages':[message]}
         
     #도구 실행
-    def take_action(self):
-        pass 
+    def take_action(self, state:AgentState):
+        #도구 실행 -> 최신 메세지(state['messages'][-1])의 tool_calls
+        tool_calls = state['messages'][-1].tool_calls
+
+        results = []
+        #t -> 1개의 개별 도구(함수, API)
+        #위치, 맛집 api / 날씨 
+        for t in tool_calls:
+            print(f'도구 호출 : {t['name']} -> {t['args']}')
+
+            if t['name'] not in self.tools:
+                result = '존재하지 않는 도구입니다.'
+            else:
+                #self.tools -> 함수, api .invoke(도구실행에필요한매개변수)
+                result = self.tools[t['name']].invoke(t['args'])
+            results.append(
+                #tool의 id, name, conent(툴을 쓴 결과)
+                ToolMessage(tool_call_id=t['id'], name=t['name'], 
+                            content=str(result))
+            )
+            print(f'모델로 복귀\n')
+            return {'messages':results}
 
     
