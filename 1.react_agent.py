@@ -100,12 +100,12 @@ known_actions = {'calculate':calculate,
 #$        -> 끝
 action_re = re.compile(r'^Action: (\w+): (.*)$')
 
-if __name__ == '__main__':
-    line = "Action: calculate: 40*33"
-    match = action_re.match(line)
-    action, action_input = match.groups()
-    print(f'액션: {action}')
-    print(f'인풋 :{action_input}')
+# if __name__ == '__main__':
+#     line = "Action: calculate: 40*33"
+#     match = action_re.match(line)
+#     action, action_input = match.groups()
+#     print(f'액션: {action}')
+#     print(f'인풋 :{action_input}')
 
 def query(question, max_turns=5):
     i = 0
@@ -122,4 +122,15 @@ def query(question, max_turns=5):
             action, action_input = actions[0].groups()
             if action not in known_actions:
                 raise Exception(f'unknown actoin : {action} - {action_input}')
-            print(f'running {action}( {action_input}  )')
+            print(f'running ... {action}( {action_input}  )')
+            observation = known_actions[action](action_input)
+
+            print(f'observation ... {observation}')
+            next_prompt = f'Observation: {observation}'
+        else:
+            return
+
+if __name__ == '__main__':
+    question = '''I have 2 dogs, a border collie and a scottish terrier. 
+        What is their combined weight?'''
+    query(question=question)
