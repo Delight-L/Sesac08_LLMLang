@@ -5,6 +5,7 @@
 import os 
 import pandas as pd 
 
+#랭그래프 핵심요소 -> 상태, 노드, 엣지
 from langgraph.graph import StateGraph, START, END 
 from langchain_core.prompts import ChatPromptTemplate 
 from langchain_core.output_parsers import StrOutputParser
@@ -17,12 +18,13 @@ class State(TypedDict):
     label : str 
     reply : str
 
+#긍정리뷰 고객에게 감사 댓글 생성
 def thanks_node(state, chat):
     chain = ChatPromptTemplate.from_template(T.THANKS_TEMPLATE) | chat | StrOutputParser()
     reply = chain.invoke({'comment':state['comment']}) #chain.invoke의 결과 -> gpt의 답변
     return {'reply':reply}
 
-
+#부정리뷰 고객에게 죄송함.. 댓글 생성
 def sorry_node(state, chat):
     chain = ChatPromptTemplate.from_template(T.IMPROVE_TEMPLATE) | chat | StrOutputParser()
     reply = chain.invoke({'comment':state['comment']}) #chain.invoke의 결과 -> gpt의 답변
@@ -43,9 +45,25 @@ def build_graph():
     graph.add_node('sorry', sorry_node)
 
     graph.add_conditional_edges(START, route_by_sentiment, 
+                                #리턴받은 값 : 그래프에 등록된 함수의 이름
                                 {'thanks':'thanks',
                                  'sorry':'sorry'})
 
     graph.add_edge('thanks', END)
     graph.add_edge('sorry', END)
     return graph.compile()
+
+import main as m
+
+if __name__ == '__main__':
+    #1. 리뷰 읽어오기
+    df = m.load_reviews('./tarr_train.txt')
+    print(df)
+    graph = build_graph()
+
+    #2. 한 줄 한 줄 떼기 
+    for i in range(len(df)):
+        comment = df.loc[i]['comment']
+        label = df.loc[i]['label']
+        #3. 그래프로 흘려보내기 
+        graph.invoke({내용채우기})
