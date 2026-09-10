@@ -25,7 +25,7 @@ class AgentState(TypedDict):
 class Agent:
     #이름만 Agent이고 langgraph로 구현함
     #langgraph를 구현
-    def __init__(self, system):
+    def __init__(self, system, tools, model):
         self.system = system #시스템에 대한 전반적인 답변 매너를 정하는 프롬프트
 
         #그래프 정의
@@ -34,10 +34,19 @@ class Agent:
         graph.add_node('tool', self.take_action) #2.혹시 채팅중 도구 필요하면 쓴다
 
         graph.add_conditional_edges('llm', self.exist_action, 
-                                    {True : 무엇?,
-                                     False : 무엇?})
+                                    {True : 'tool',
+                                     False : END})
 
-        
+        graph.add_edge('tool', 'llm') #<<<< 여기 체크
+        graph.set_entry_point('llm') #START 노드에서 시작하지 않았으므로 시작점이 llm 함수임을 알림
+        # END -> LLM (while루프에서 돌려줌)
+        self.graph = graph.compile()
+
+        #print('ffffffffffffftttttttt : ', tools.name)
+        self.tools = {t.name : t for t in tools}
+        self.model = model.bind_tools(tools)
+
+  
     #조건 판단함 -> 툴이 있나?
     def exist_action(self, state:AgentState):
         return len(state['messages'][-1].tool_calls) > 0
@@ -74,4 +83,22 @@ class Agent:
             print(f'모델로 복귀\n')
             return {'messages':results}
 
-    
+
+if __name__ == '__main__':
+    model = ChatOpenAI(model='gpt-4o', temperature=0.5)
+    system = '''
+        당신은 유능한 리서처입니다.
+        위키피디아를 이용하여 정보를 검색하세요.
+        다중 calls을 실행하는 것도 허용합니다.(순차적, 병렬적 콜 가능)
+        당신이 원하는 것이 정확히 지정되었을 때만 정보를 검색하세요.
+    '''
+    tools = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_result=2,
+                                                                doc_content_chars_max=1000))
+    print(f'사용 도구 : {tools.name}')
+    bot = Agent(system, [tools], model)
+
+    question = input('질문해주세요 : \n')
+    message = HumanMessage(content=question)
+    #bot.graph => Agent.graph
+    result = bot.graph.invoke({'messages':message})
+    print(f'{result['message'][-1].content}')
