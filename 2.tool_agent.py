@@ -19,7 +19,7 @@ from langchain_openai import ChatOpenAI
 import operator
 
 class AgentState(TypedDict):
-    message : Annotated[list[AnyMessage], operator.add]
+    messages : Annotated[list[AnyMessage], operator.add]
 
 
 class Agent:
@@ -68,7 +68,7 @@ class Agent:
         #t -> 1개의 개별 도구(함수, API)
         #위치, 맛집 api / 날씨 
         for t in tool_calls:
-            print(f'도구 호출 : {t['name']} -> {t['args']}')
+            print(f"도구 호출 : {t['name']} -> {t['args']}")
 
             if t['name'] not in self.tools:
                 result = '존재하지 않는 도구입니다.'
@@ -81,16 +81,13 @@ class Agent:
                             content=str(result))
             )
             print(f'모델로 복귀\n')
-            return {'messages':results}
+        return {'messages':results}
 
 
 if __name__ == '__main__':
     model = ChatOpenAI(model='gpt-4o', temperature=0.5)
     system = '''
-        당신은 유능한 리서처입니다.
-        위키피디아를 이용하여 정보를 검색하세요.
-        다중 calls을 실행하는 것도 허용합니다.(순차적, 병렬적 콜 가능)
-        당신이 원하는 것이 정확히 지정되었을 때만 정보를 검색하세요.
+        You are a smart research assistant. 
     '''
     tools = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_result=2,
                                                                 doc_content_chars_max=1000))
@@ -98,7 +95,7 @@ if __name__ == '__main__':
     bot = Agent(system, [tools], model)
 
     question = input('질문해주세요 : \n')
-    message = HumanMessage(content=question)
+    message = [HumanMessage(content=question)]
     #bot.graph => Agent.graph
     result = bot.graph.invoke({'messages':message})
-    print(f'{result['message'][-1].content}')
+    print(f'{result['messages'][-1].content}')
