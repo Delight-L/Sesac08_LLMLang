@@ -22,6 +22,10 @@ class AgentState(TypedDict):
     messages : Annotated[list[AnyMessage], operator.add]
 
 
+import wikipedia
+wikipedia.set_user_agent('CoredataLectureBot/1.0 (chorokje@gmail.com)') 
+
+
 class Agent:
     #이름만 Agent이고 langgraph로 구현함
     #langgraph를 구현
@@ -88,8 +92,10 @@ if __name__ == '__main__':
     model = ChatOpenAI(model='gpt-4o', temperature=0.5)
     system = '''
         You are a smart research assistant. 
+        Using Wekipedia tools for search.
+        You could search when you sure what you want.
     '''
-    tools = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_result=2,
+    tools = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_results=2,
                                                                 doc_content_chars_max=1000))
     print(f'사용 도구 : {tools.name}')
     bot = Agent(system, [tools], model)
