@@ -17,15 +17,14 @@ from langchain_openai import ChatOpenAI
 
 #리스트를 합쳐줌 [] [] -> [] operator.add
 import operator
-
-class AgentState(TypedDict):
-    messages : Annotated[list[AnyMessage], operator.add]
-
-
 import wikipedia
 wikipedia.set_user_agent('CoredataLectureBot/1.0 (chorokje@gmail.com)') 
 
 
+class AgentState(TypedDict):
+    messages : Annotated[list[AnyMessage], operator.add]
+
+#Agent의 탈을 쓴 그래프
 class Agent:
     #이름만 Agent이고 langgraph로 구현함
     #langgraph를 구현
@@ -87,7 +86,67 @@ class Agent:
             print(f'모델로 복귀\n')
         return {'messages':results}
 
+from langchain_core.tools import tool
 
+import requests
+GEO_URL     = 'https://geocoding-api.open-meteo.com/v1/search'
+WEATHER_URL = 'https://api.open-meteo.com/v1/forecast'
+
+#API가 주는 weather_code(WMO 국제 기상 코드) -> 사람이 읽는 말로 바꿔주는 표
+WMO_CODES = {
+    0: '맑음', 1: '대체로 맑음', 2: '구름 조금', 3: '흐림',
+    45: '안개', 48: '짙은 안개',
+    51: '약한 이슬비', 53: '이슬비', 55: '강한 이슬비',
+    56: '약한 어는 이슬비', 57: '강한 어는 이슬비',
+    61: '약한 비', 63: '비', 65: '강한 비',
+    66: '약한 어는 비', 67: '강한 어는 비',
+    71: '약한 눈', 73: '눈', 75: '강한 눈', 77: '싸락눈',
+    80: '약한 소나기', 81: '소나기', 82: '강한 소나기',
+    85: '약한 눈 소나기', 86: '강한 눈 소나기',
+    95: '뇌우', 96: '우박을 동반한 뇌우', 99: '강한 우박 뇌우',
+}
+
+def fetch_weather(city, country_code='KR'):
+    try : 
+        #인터넷 페이지에 요청하여 날씨 결과를 받아옴
+        geo = requests.get(GEO_URL, params={'name':city, 
+                                            'count':1,
+                                            'language':'ko',
+                                            'country_code':country_code}).json()
+        #국가-도시의 결과를 얻지 못한 경우
+        if not geo.get('results'):
+            return f'{city}의 위도 경도를 찾지 못했습니다.'
+
+        loc = geo['results'][0]
+
+        weather = requests.get(WEATHER_URL, params={
+            'latitude':loc['latitude'],
+            'longitude':loc['longitude'],
+            'timezone':'auto'
+        }, timeout=10).json()
+
+        if weather.get('error'):
+            return f'날씨 API 오류 : {weather.get('reason')}'
+
+        cur = weather['current']
+
+
+    #1.인터넷 요청 실패, 2.내용(요청) 잘못됨, 3.받아온 값이 이상함 -> e
+    except (requests.RequestException, KeyError, ValueError) as e:
+        return f'날씨 API 호출 실패 : 원인 {e}'
+
+
+#def 함수이름(매개변수:매개변수의 자료형 = 디폴트값) -> 리턴자료형:
+@tool 
+def get_weather(city:str, country_code:str='KR') -> str:
+    '''현재 city의 날씨 정보를 얻어옵니다. 
+    city의 이름은 영어로 되어야 합니다. 예시: seoul, busan, jeju
+    country_code는 영어 2글자 표준 표기를 따릅니다. 예시 : KR, JP, US'''
+    return fetch_weather(city, country_code)
+
+
+
+#진입
 if __name__ == '__main__':
     model = ChatOpenAI(model='gpt-4o', temperature=0.5)
     system = '''
