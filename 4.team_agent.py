@@ -75,14 +75,39 @@ def plan_node(state:AgentState):
 def generate_node(state:AgentState):
     pass 
 
+#주제에 관련된 내용을 문헌 검색
 def research_node(state:AgentState):
-    pass 
+    return _run_research(state, state['task']) 
+
+#검색 결과에 대해 평가
+def critique_node(state:AgentState):
+    return _run_research(state, state['critique'])
+
+def _run_research(state:AgentState, user_content):
+    #queries는 Queries라는 클래스의 output을 만드는 모델의 실행 결과
+    queries_ = model.structured_output(Queries).invoke([
+        SystemMessage(content=RESEARCH_PROMPT),
+        HumanMessage(content=user_content)
+    ])
+    content = list(state.get('content') or [])
+    #결과물로 받은 List[str] 형태의 쿼리들을 for문 q로 하나씩 빼온다
+    for q in queries_.queries:
+        print(f' 검색 중... : {q}')
+        try : 
+            result = wiki.invoke({'query': q})
+        except Exception as e:
+            print(f'검색 실패...')
+            continue 
+        content.append(result)
+    return {'content': content} 
+
+
+
 
 def reflection_node(state:AgentState):
     pass 
 
-def critique_node(state:AgentState):
-    pass
+
 
 def should_continue(state:AgentState):
     pass
