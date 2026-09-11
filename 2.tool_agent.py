@@ -129,11 +129,15 @@ def fetch_weather(city, country_code='KR'):
             return f'날씨 API 오류 : {weather.get('reason')}'
 
         cur = weather['current']
-
-
     #1.인터넷 요청 실패, 2.내용(요청) 잘못됨, 3.받아온 값이 이상함 -> e
     except (requests.RequestException, KeyError, ValueError) as e:
         return f'날씨 API 호출 실패 : 원인 {e}'
+
+    sky = WMO_CODES.get(cur['weather_code'], f"알 수 없음(code {cur['weather_code']})")
+    return (f"{loc['name']} ({cur['time']} 기준) | {sky} | 기온 {cur['temperature_2m']}°C | "
+            f"습도 {cur['relative_humidity_2m']}% | 강수량 {cur['precipitation']}mm | "
+            f"풍속 {cur['wind_speed_10m']}km/h")
+
 
 
 #def 함수이름(매개변수:매개변수의 자료형 = 디폴트값) -> 리턴자료형:
@@ -154,10 +158,12 @@ if __name__ == '__main__':
         Using Wekipedia tools for search.
         You could search when you sure what you want.
     '''
-    tools = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_results=2,
+    wiki = WikipediaQueryRun(api_wrapper = WikipediaAPIWrapper(top_k_results=2,
                                                                 doc_content_chars_max=1000))
-    print(f'사용 도구 : {tools.name}')
-    bot = Agent(system, [tools], model)
+
+    tools = [wiki, get_weather]
+    #print(f'사용 도구 : {tools.name}')
+    bot = Agent(system, tools, model)
 
     question = input('질문해주세요 : \n')
     message = [HumanMessage(content=question)]
