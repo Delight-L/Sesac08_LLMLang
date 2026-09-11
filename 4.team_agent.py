@@ -72,15 +72,14 @@ def plan_node(state:AgentState):
     ])
     return {'plan':response.content}
 
-def generate_node(state:AgentState):
-    pass 
-
 #주제에 관련된 내용을 문헌 검색
 def research_node(state:AgentState):
+    print(f'[research node] .... 리서치 중 ....')
     return _run_research(state, state['task']) 
 
 #검색 결과에 대해 평가
 def critique_node(state:AgentState):
+    print(f'[research 크리틱 node] .... 리서치 품질 검토 중 ....')
     return _run_research(state, state['critique'])
 
 def _run_research(state:AgentState, user_content):
@@ -101,16 +100,37 @@ def _run_research(state:AgentState, user_content):
         content.append(result)
     return {'content': content} 
 
+def generate_node(state:AgentState):
+    #가지고 있던 content의 목록 -> content_str
+    print(f'[generate node] .... 에세이 생성 중 ....')
+    content_str = '\n'.join(state.get('content') or [])
+    response = model.invoke([
+        SystemMessage(content=WRITER_PROMPT.format(content=content_str)),
+        HumanMessage(content=f'''{state['content']} 
+                                Here is my Plan {state['plan']}''')
+    ])
+
+    #생성 시도 제한
+    rev = state.get('revision_number', 1)
+    return {'draft':response.content, 'revision_number': rev+1}
 
 
-
+#비평가.. 내가 쓴 에세이.. 
 def reflection_node(state:AgentState):
-    pass 
+    print(f'[reflection node] .... 비평 중 ....')
+    response = model.invoke([
+        SystemMessage(content=REFLECTION_PROMPT),
+        HumanMessage(content=state['draft'])
+    ])
+    return {'critique': response.content}
 
-
-
+#내가 state에 가지고 있는 revision_number가 max_revision을 넘으면 끝
+#그렇지 않으면 다시 reflect로 이동
 def should_continue(state:AgentState):
-    pass
+    if state['revision_number'] > state['max_revisions']:
+        return END
+    else:
+        return 'reflect'
 
 
 def build_graph():
@@ -122,7 +142,7 @@ def build_graph():
     graph.add_node('critique', critique_node)
 
     #연결
-    graph.set_entry_node('planner')
+    graph.set_entry_point('planner')
     graph.add_edge('planner', 'researcher')
     graph.add_edge('researcher', 'generator')
     graph.add_conditional_edges(
@@ -136,3 +156,8 @@ def build_graph():
 
     memory = MemorySaver()
     return graph.compile(checkpointer=memory)
+
+
+if __name__ == '__main__':
+    graph = build_graph()
+    print(graph.get_graph().print_ascii())
