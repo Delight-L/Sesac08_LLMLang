@@ -31,9 +31,18 @@ agent = create_react_agent(
     checkpointer=memory
 )
 
-if __name__ == '__main__':
-    config = {"configurable": {"thread_id": '001'}}
-    query = input('무엇이 궁금하세요?')
+def chat_agent(query, id):
+    config = {"configurable": {"thread_id": id}}
     response = agent.invoke({'messages':['human', query]},
                             config=config)
     print(response['messages'][-1].content)
+
+if __name__ == '__main__':
+
+    for i in range(5):
+        if i%2 == 0:
+            id = 'even'
+        else:
+            id = 'odd'
+        query = input('무엇이 궁금하세요?')
+        chat_agent(query, id)
