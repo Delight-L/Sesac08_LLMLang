@@ -84,7 +84,7 @@ def critique_node(state:AgentState):
 
 def _run_research(state:AgentState, user_content):
     #queries는 Queries라는 클래스의 output을 만드는 모델의 실행 결과
-    queries_ = model.structured_output(Queries).invoke([
+    queries_ = model.with_structured_output(Queries).invoke([
         SystemMessage(content=RESEARCH_PROMPT),
         HumanMessage(content=user_content)
     ])
@@ -157,7 +157,31 @@ def build_graph():
     memory = MemorySaver()
     return graph.compile(checkpointer=memory)
 
+import wikipedia
+wikipedia.set_user_agent('jeongeunswd@gmail.com')
+
+wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper(
+    top_k_results=2,
+    doc_content_chars_max=1000
+))
 
 if __name__ == '__main__':
     graph = build_graph()
-    print(graph.get_graph().print_ascii())
+    #pip install grandalf
+    #print(graph.get_graph().print_ascii())
+
+    task = input('어떤 주제에 대해 글을 쓸까요? \n')
+    thread_id = {'configurable' : {'thread_id':'essay-1'}}
+
+    #graph에 필요한 초기값은 graph.stream({초기값}, configure)
+    for s in graph.stream(
+        {'task' : task, 
+        'max_revisions' : 2,
+        'revision_number' :1,
+        'content': []}, thread_id):
+
+        node_list= list(s.keys())[0]
+        print(f'{node_list} 완료')
+
+    final = graph.get_state(thread_id)
+    print(final.values['draft'])
