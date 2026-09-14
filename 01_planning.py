@@ -15,8 +15,8 @@ def generate(prompt, temperature=0.5):
         #playground의 사용가능한 모델을 선택
         #'추론'이 선행(깊은생각 후 답변)
         #https://developers.openai.com/api/docs/models
-        model = 'gpt-5-mini',
-        #temperature = 0.7,
+        model = 'gpt-4o', #'gpt-5-mini',
+        temperature = 0.7,
         messages = [{'role':'user', 'content':prompt}]
     )
     return completion.choices[0].message.content
@@ -81,9 +81,10 @@ def create_atomic_action(step, max_result=3):
             반드시 json만 결과물로 생성해.
             단계가 단순하면 객체 하나를, 여러개의 동작이 필요하면 객체의 배열을 출력해.
 
-            형식(단일) : {{'action':'행동 이름', 'inputs':{{'key':'value'}}}}
-            형식(복수) : [{{'action':'행동 이름', 'inputs' : {{}}}}, 
-                        {{'action':'행동 이름2', 'inputs' : {{}}}}]
+            
+            형식(단일): {{"action": "행동_이름", "inputs": {{"key": "value"}}}}
+            형식(복수): [{{"action": "행동_이름", "inputs": {{}}}}, {{"action": "행동_이름2", "inputs": {{}}}}]
+
 
             단계 {step}
             json만 출력
@@ -92,6 +93,7 @@ def create_atomic_action(step, max_result=3):
     for attempt in range(max_result):
         response = generate(prompt)
         parsed= extract_json_from_text(response)
+        print(parsed)
         #형식(복수) : {{'action':'행동 이름', 'inputs' : {{}}, {{'action':'value'}}}}
         #parsed된 객체가 딕셔너리이고, 결과물에 action이 있다면 -> 양호한 응답을 받아 파싱 잘 한 사례
         if isinstance(parsed, dict) and 'action' in parsed:
@@ -103,10 +105,32 @@ def create_atomic_action(step, max_result=3):
         print(f'action 형식이 맞지 않아 재시도... [{attempt+1}/{max_result}]')
     return None
 
+#[실행] -> 계획(데이터)과 실행(행동)을 분리
+#중간에 실행이 끊기거나 문제가 생기더라도 복구 가능
+def execute_plan(plan):
+    if not plan or 'step' not in plan:
+        return []
+
+    results = []
+    for i, step in enumerate(plan['step'], 1):
+        #step별 action을 받아서 수행
+        action = create_atomic_action(step)
+
+        if action is None:
+            results.append({'step':step, 'success':False, 'error':'액션 변환 실패'})
+            continue
+
+        print(f'action -> {action['action']}, inputs={action.get('inputs', {})}')
+        results.append({'step':step, 'action':action, 'success':True})
+    return results
+
 if __name__ == '__main__':
     query = input('오늘은 무엇을 도와드릴까요?\n')
     #query == goal
     plan = create_plan(query)
+    #print(plan)
     action = create_atomic_action(plan)
+    result = execute_plan(plan)
 
-    print(f'{query}달성을 위해 세운 액션 : \n {action}')  
+    #print(f'{query}달성을 위해 세운 액션 : \n {action}')  
+    print(f'액션을 실행한 결과 리스트 : {result}')
