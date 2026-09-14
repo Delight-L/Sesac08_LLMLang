@@ -93,6 +93,7 @@ def execute_graph(graph):
     # 마친 일의 길이 < 노드의 일의 길이보다 작다. => 일이 남은동안 while해라.
     while len(done) < len(nodes):
         #nid -> 1, 2, .... n => {'id': '1', 'action': '컴퓨터_전원_끄기', 'depends_on': []}
+        #nodes.items() -> 딕셔너리 nid(키), n(값)
         ready = [n for nid, n in nodes.items()
                  #nid not in done : 마치지 않은 nid -> 해야하는 일
                  if nid not in done and all(d in done for d in n.get('depends_on', []))]
@@ -103,10 +104,36 @@ def execute_graph(graph):
             break 
 
         print(f'섹션 {section} 동시 실행 : {[n['action'] for n in ready]}')
+        #지금 task를 할 때 시간 기록 
+        t0 = time.time()
 
+        #병렬실행 어떻게? len(ready) 만큼
+        with ThreadPoolExecutor(max_workers=len(ready)) as executor:
+            #map -> 
+            outputs = list(executor.map(lambda n : run_action(n['action']), ready))
+
+        elapsed = time.time() - t0
+        print(f'elapsed 걸린 시간 : {elapsed} ')
+
+        for n, out in zip(ready, outputs):
+            results.append({'id':n['id'], 'action':n['action'], 'result':out})
+            done.add(n['id'])
+        section += 1 
+    return results 
+
+def run_action(action):
+    time.sleep(1)
+    return f'{action} 완료'
 
 
 if __name__ == '__main__':
     query = input('무엇을 하고 싶은지 알려주세요. :\n')
+    #쿼리를 기반으로 작업을 생성 -> result 
+    #{'nodes': [{'id': '1', 'action': '컴퓨터_전원_끄기', 'depends_on': []}, {'id': '2', 'action': '케이스_열기', 'depends_on': ['1']}, {'id': '3', 'action': '기존_HDD_제거', 'depends_on': ['2']}, {'id': '4', 'action': '새_HDD_장착', 'depends_on': ['3']}, {'id': '5', 'action': '케이스_닫기', 'depends_on': ['4']}, {'id': '6', 'action': '컴퓨터_전원_켜기', 'depends_on': ['5']}, {'id': '7', 'action': 'HDD_마운트', 'depends_on': ['6']}]}
     result = create_depend_graph(query)
-    print(result)
+
+    #r -> {'id': '1', 'action': '컴퓨터_전원_끄기', 'depends_on': []}
+    #for r in result['nodes']:
+    
+    response = execute_graph(result)
+    print(f'response : {response}')
