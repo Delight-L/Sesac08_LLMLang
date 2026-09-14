@@ -93,7 +93,7 @@ def create_atomic_action(step, max_result=3):
     for attempt in range(max_result):
         response = generate(prompt)
         parsed= extract_json_from_text(response)
-        print(parsed)
+        #print(parsed)
         #형식(복수) : {{'action':'행동 이름', 'inputs' : {{}}, {{'action':'value'}}}}
         #parsed된 객체가 딕셔너리이고, 결과물에 action이 있다면 -> 양호한 응답을 받아 파싱 잘 한 사례
         if isinstance(parsed, dict) and 'action' in parsed:
@@ -115,12 +115,12 @@ def execute_plan(plan):
     for i, step in enumerate(plan['step'], 1):
         #step별 action을 받아서 수행
         action = create_atomic_action(step)
-
+        print(f'액션 : {action}')
         if action is None:
             results.append({'step':step, 'success':False, 'error':'액션 변환 실패'})
             continue
 
-        print(f'action -> {action['action']}, inputs={action.get('inputs', {})}')
+        print(f'action -> {action[0]['action']}, inputs={action[0]['inputs']}')
         results.append({'step':step, 'action':action, 'success':True})
     return results
 
