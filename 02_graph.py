@@ -126,14 +126,70 @@ def run_action(action):
     return f'{action} 완료'
 
 
+#검증 -> 선행 step에 대한 의존성 검증(그래프가 순환하지 않는가?)
+#DFS 
+def valid_graph(graph):
+    nodes = graph['nodes']
+    ids = {n['id'] for n in nodes}
+
+    for n in nodes:
+        for d in n.get('depends_on', []):
+            if d not in ids:
+                return False, f'{n['id']}가 존재하지 않는 {d}를 참조함'
+
+    #DFS 
+    # {4 : [2, 3], 5:[4], ...}
+    graph_maps = {n['id'] : n.get('depends_on', []) for n in nodes}
+    visiting, visited = set(), set() #set을 왜 쓸까? -> 중복없음
+    #재귀적(내가 나를 부르는) 호출
+    def has_cycle(node_id):
+
+        if node_id in visiting:
+            print(f'True -> {node_id}')
+            return True
+
+        if node_id in visited:
+            print(f'False -> {node_id}')
+            return False
+
+        visiting.add(node_id)
+        #1, 2, 3, 4, 5, .....
+        #4 => [2, 3] (2와 3이 dep임)
+        #5 => 4 => [2, 3]
+        for dep in graph_maps.get(node_id, []):
+            # has_cycle(2) / has_cycle(3) 
+            if has_cycle(dep):
+                return True
+
+        #1번 -> 의존 노드 없음 -> visited목록에 1번 추가 (F)
+        #2번 -> 의존 노드 없음 -> visited목록에 2번 추가 (F)
+        #3번 -> 의존 노드 없음 -> visited목록에 2번 추가 (F)
+        #4번 -> 2, 3번 노드 있음 -> False를 리턴  (T)
+        #5번 -> 4번 노드 -> 2, 3번 노드 -> False리턴 (T)
+        visiting.discard(node_id)
+        visited.add(node_id)
+        return False
+
+    #True(순환이 있음) / False(순환이 없음)
+    # 2번, 3번 자체는 더 밑으로 안내려감
+    # 4번 -> 2, 3번이 있어서 True
+    # 5번 -> 4번이 있어서 True
+    for node_id in ids:
+        if has_cycle(node_id):
+            return False, f"순환 의존성 발견 (노드 '{node_id}' 근처)"
+    return True, 'OK'
+
+
 if __name__ == '__main__':
     query = input('무엇을 하고 싶은지 알려주세요. :\n')
     #쿼리를 기반으로 작업을 생성 -> result 
     #{'nodes': [{'id': '1', 'action': '컴퓨터_전원_끄기', 'depends_on': []}, {'id': '2', 'action': '케이스_열기', 'depends_on': ['1']}, {'id': '3', 'action': '기존_HDD_제거', 'depends_on': ['2']}, {'id': '4', 'action': '새_HDD_장착', 'depends_on': ['3']}, {'id': '5', 'action': '케이스_닫기', 'depends_on': ['4']}, {'id': '6', 'action': '컴퓨터_전원_켜기', 'depends_on': ['5']}, {'id': '7', 'action': 'HDD_마운트', 'depends_on': ['6']}]}
     result = create_depend_graph(query)
+    print(result)
 
     #r -> {'id': '1', 'action': '컴퓨터_전원_끄기', 'depends_on': []}
-    #for r in result['nodes']:
+    ok, msg = valid_graph(result)
+    print(f'{msg}')
     
     response = execute_graph(result)
     print(f'response : {response}')
