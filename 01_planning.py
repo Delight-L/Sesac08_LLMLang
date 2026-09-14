@@ -35,11 +35,78 @@ def create_plan(goal, max_result=3):
 
     for attempt in range(max_result):
         response = generate(prompt)
-        ##
+        #json형식을 파싱하는 함수 -> Langchain OutputParser
+        plan = extract_json_from_text(response)
+        #plan이라는 추출된 텍스트가 dictionary형태로, step이라는 키를 가졌냐?
+        if plan and isinstance(plan.get('step'), list):
+            return plan 
+        print(f' 형식이 맞지 않아 재시도중 ... {attempt+1}/{max_result}')
+    return None
 
+#[JSON 파싱 유틸] -> LLM이 JSON 앞뒤에 설명이나 ```json 코드블록을 붙이는 경우가 많음
+#                  그대로 json.loads() 하면 실패하므로, 잡다한 텍스트를 벗겨내고 순수 JSON만 추출
+import json 
+def extract_json_from_text(response):
+    if not response:
+        return None 
+    #' ``(백틱)
+    text = response
+    if response.startswith('```'):
+        text = response.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+    text = text.strip()
 
+    #리스트에 대비
+    if text.startswith('['):
+        open_t, close_t = '[', ']'
+    else:
+        open_t, close_t = '{', '}'
+
+    start, end = text.find(open_t), text.rfind(close_t)
+    if start == -1 or end == -1:
+        return None 
+
+    try:
+        return json.loads(text[start:end+1])
+    except json.JSONDecodeError:
+        return None
+
+#플랜을 실행 가능한 '원자적 액션 단위'로 나눔
+#step=> 계획(추출된 계획)
+#max_result => 형식에 맞추어 여러 번 시도
+def create_atomic_action(step, max_result=3):
+    prompt = f'''
+            아래의 계획 단계를 실행 가능한 원자적 액션으로 만들어줘.
+            반드시 json만 결과물로 생성해.
+            단계가 단순하면 객체 하나를, 여러개의 동작이 필요하면 객체의 배열을 출력해.
+
+            형식(단일) : {{'action':'행동 이름', 'inputs':{{'key':'value'}}}}
+            형식(복수) : [{{'action':'행동 이름', 'inputs' : {{}}}}, 
+                        {{'action':'행동 이름2', 'inputs' : {{}}}}]
+
+            단계 {step}
+            json만 출력
+    '''
+
+    for attempt in range(max_result):
+        response = generate(prompt)
+        parsed= extract_json_from_text(response)
+        #형식(복수) : {{'action':'행동 이름', 'inputs' : {{}}, {{'action':'value'}}}}
+        #parsed된 객체가 딕셔너리이고, 결과물에 action이 있다면 -> 양호한 응답을 받아 파싱 잘 한 사례
+        if isinstance(parsed, dict) and 'action' in parsed:
+            return [parsed]
+
+        if isinstance(parsed, list) and parsed and all('action' in a for a in parsed):
+            return parsed
+
+        print(f'action 형식이 맞지 않아 재시도... [{attempt+1}/{max_result}]')
+    return None
 
 if __name__ == '__main__':
     query = input('오늘은 무엇을 도와드릴까요?\n')
-    response = generate(query)
-    print(response)
+    #query == goal
+    plan = create_plan(query)
+    action = create_atomic_action(plan)
+
+    print(f'{query}달성을 위해 세운 액션 : \n {action}')  
