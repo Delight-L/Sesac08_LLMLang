@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 #내가 사용할 템플릿(templates.py라는 파일에서 모든(*) 애들을 다 데려오겠다)
-import templates as T
+import basic_component.templates as T
 
 
 #내가 사용할 gpt모델 

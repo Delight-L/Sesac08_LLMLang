@@ -9,7 +9,7 @@ def load_reviews(path):
     #print(df['comment'])
     return df
 
-import templates as T
+import basic_component.templates as T
 from langchain_core.prompts import ChatPromptTemplate 
 from langchain_core.output_parsers import StrOutputParser
 def build_reply_chain(chat):

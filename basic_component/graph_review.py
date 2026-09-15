@@ -10,7 +10,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.prompts import ChatPromptTemplate 
 from langchain_core.output_parsers import StrOutputParser
 
-import templates as T
+import basic_component.templates as T
 from typing import TypedDict
 
 class State(TypedDict):
@@ -57,7 +57,7 @@ def build_graph(chat):
     graph.add_edge('sorry', END)
     return graph.compile()
 
-import main as m
+import basic_component.main as m
 from langchain_openai import ChatOpenAI
 if __name__ == '__main__':
     #1. 리뷰 읽어오기
