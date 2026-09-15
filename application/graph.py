@@ -16,6 +16,18 @@ class State(TypedDict):
     recommend_place : dict 
     final_message : str 
 
+#갈림길에서 어디로 연결할 것인가?
+def route_intent(state:State):
+    #그래프 내부의 상태(state)에서 intent를 가져와서, 상태별로 위치 분기
+    intent = state.get('intent', '')
+
+    if intent == 'food':
+        return 'recommend_food'
+    elif intent == 'activity':
+        return 'recommend_activity'
+    else:
+        return 'unexpected'
+
 import nodes #nodes.py에 우리가 사용할 함수들을 몰아서 작성
 def build_graph():
 
@@ -49,3 +61,4 @@ def build_graph():
     build.add_edge('generate_keyword', 'search_place')
     build.add_edge('search_place', 'summarize_output')
     build.add_edge('summarize_output', END)
+    return build.compile()
