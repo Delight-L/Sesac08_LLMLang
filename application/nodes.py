@@ -2,6 +2,9 @@ import time  #실행시간
 from datetime import datetime #연월일 등 정보
 from zoneinfo import ZoneInfo #타임존(태평양시... 미국 기준시... etc)
 
+import config
+import requests
+
 #랭그래프 내부에서 답변을 주는 chatgpt를 분리해서 사용 -> json포맷을 지키는 gpt
 from langchain_openai import ChatOpenAI
 llm_json = ChatOpenAI(
@@ -14,6 +17,9 @@ llm_normal = ChatOpenAI(
     model = 'gpt-4o',
     temperature = 0.7,
 )
+
+def _call_tool():
+    pass
 
 #각 함수들이 gpt에 말을 걸 때 사용가능한 기본 함수(랭그래프X, 기능적필요O) 작성
 def _call_llm(llm, messages, max_attempts=3):
@@ -142,8 +148,36 @@ def generate_search_keyword(state:dict):
     print('search keyword...')
 
 def search_place(state:dict):
+    '''카카오맵 API를 활용하여 search_keyword로 생성된 단어를 검색'''
     print('search_place...')
+    location = state.get('location', '서울')
+    keyword = state.get('search_keyword', '추천')
+    query = f'{location} {keyword}'
+    print(f'카카오맵 검색어 : {query}')
 
+    #API 사용방법
+    def _fetch():
+        url = "https://dapi.kakao.com/v2/local/search/keyword.json"
+        params = {'query':query, 'size':1}
+        headers = {'Authorization':f'KakaoAK {config.KAKAO_API_KEY}'} #API KEY를 코드로 전달
+        resq = requests.get(url, 
+                            headers=headers,
+                            params=params,
+                            timeout=5)
+
+        resq.raise_for_statue()
+        return resq.json()['documents']
+    #docs = resq.json()['documents']
+    docs = _call_tool('kakao_search', _fetch, query=query)
+    if docs:
+        top=docs[0]
+        place = {'name':top['place_name'], 
+                 "address": top["road_address_name"], 
+                 "url": top["place_url"]}
+    else:
+        place = {'name':'', "address": '', "url": ''}
+    return {**state, 'recommend_place':place}
+        
 def summarize_output(state:dict):
     print('summarize_output...')
 
